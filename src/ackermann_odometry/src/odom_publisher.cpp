@@ -1,5 +1,6 @@
 #include "ackermann_odometry/odom_publisher.hpp"
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <stdexcept>
 
 namespace ackermann_odometry
 {
@@ -7,22 +8,24 @@ namespace ackermann_odometry
 OdomPublisher::OdomPublisher()
 : Node("odom_publisher")
 {
-  // Declare and get parameters
-  this->declare_parameter("axle_length", rclcpp::PARAMETER_DOUBLE);
-  this->declare_parameter("wheelbase_length", rclcpp::PARAMETER_DOUBLE);
-  this->declare_parameter("wheel_radius", rclcpp::PARAMETER_DOUBLE);
+  // Declare and get parameters with defaults
+  this->declare_parameter("axle_length", 1.0);
+  this->declare_parameter("wheelbase_length", 2.0);
+  this->declare_parameter("wheel_radius", 0.1);
   this->declare_parameter("center_of_mass_offset", 0.0);
   this->declare_parameter("damping_factor", 1.0);
 
-  try {
-    axle_length_ = this->get_parameter("axle_length").as_double();
-    wheelbase_length_ = this->get_parameter("wheelbase_length").as_double();
-    wheel_radius_ = this->get_parameter("wheel_radius").as_double();
-    center_of_mass_offset_ = this->get_parameter("center_of_mass_offset").as_double();
-    damping_factor_ = this->get_parameter("damping_factor").as_double();
-  } catch (const rclcpp::exceptions::ParameterNotDeclaredException & e) {
-    RCLCPP_ERROR(this->get_logger(), "Not all parameters are set properly: %s", e.what());
-    throw;
+  axle_length_ = this->get_parameter("axle_length").as_double();
+  wheelbase_length_ = this->get_parameter("wheelbase_length").as_double();
+  wheel_radius_ = this->get_parameter("wheel_radius").as_double();
+  center_of_mass_offset_ = this->get_parameter("center_of_mass_offset").as_double();
+  damping_factor_ = this->get_parameter("damping_factor").as_double();
+
+  // Validate critical parameters
+  if (axle_length_ <= 0.0 || wheelbase_length_ <= 0.0 || wheel_radius_ <= 0.0) {
+    RCLCPP_ERROR(this->get_logger(), 
+                 "Invalid parameters: axle_length, wheelbase_length, and wheel_radius must be positive");
+    throw std::runtime_error("Invalid parameters");
   }
 
   // Initialize state
@@ -62,7 +65,7 @@ AckermannState OdomPublisher::state_update(
   double average_wheel_speed = (state.left_wheel_speed + state.right_wheel_speed) / 2.0;
   double linear_speed = average_wheel_speed * wheel_radius_;
   double turn_rad = turn_radius(state.steering_angle);
-  double angular_speed = linear_speed / turn_rad;  // This is zero if turn_radius is infinite
+  double angular_speed = std::isfinite(turn_rad) ? (linear_speed / turn_rad) : 0.0;
 
   // Calculate time delta
   rclcpp::Time feedback_time(feedback->header.stamp);
@@ -139,7 +142,8 @@ nav_msgs::msg::Odometry OdomPublisher::output(const AckermannState & state)
   odom.twist.twist.linear.y = vy;
   odom.twist.twist.linear.z = vz;
   
-  double angular_speed = linear_speed / turn_radius(state.steering_angle);
+  double turn_rad = turn_radius(state.steering_angle);
+  double angular_speed = std::isfinite(turn_rad) ? (linear_speed / turn_rad) : 0.0;
   odom.twist.twist.angular.z = angular_speed;
 
   return odom;
