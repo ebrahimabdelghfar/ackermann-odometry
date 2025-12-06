@@ -1,0 +1,16 @@
+odom_publisher:
+  ros__parameters:
+    # Distance between left and right wheels (meters)
+    axle_length: 1.0
+    
+    # Distance between front and rear axles (meters)
+    wheelbase_length: 2.0
+    
+    # Radius of the wheels (meters)
+    wheel_radius: 0.1
+    
+    # Offset of center of mass from rear axle (meters)
+    center_of_mass_offset: 0.0
+    
+    # Damping factor for position updates
+    damping_factor: 1.0
