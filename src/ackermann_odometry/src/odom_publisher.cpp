@@ -14,12 +14,16 @@ OdomPublisher::OdomPublisher()
   this->declare_parameter("wheel_radius", 0.1);
   this->declare_parameter("center_of_mass_offset", 0.0);
   this->declare_parameter("damping_factor", 1.0);
+  this->declare_parameter("publish_frequency", 50.0);
+  this->declare_parameter("odom_topic", "odom");
 
   axle_length_ = this->get_parameter("axle_length").as_double();
   wheelbase_length_ = this->get_parameter("wheelbase_length").as_double();
   wheel_radius_ = this->get_parameter("wheel_radius").as_double();
   center_of_mass_offset_ = this->get_parameter("center_of_mass_offset").as_double();
   damping_factor_ = this->get_parameter("damping_factor").as_double();
+  publish_frequency_ = this->get_parameter("publish_frequency").as_double();
+  odom_topic_ = this->get_parameter("odom_topic").as_string();
 
   // Validate critical parameters
   if (axle_length_ <= 0.0 || wheelbase_length_ <= 0.0 || wheel_radius_ <= 0.0) {
@@ -28,20 +32,34 @@ OdomPublisher::OdomPublisher()
     throw std::runtime_error("Invalid parameters");
   }
 
+  if (publish_frequency_ <= 0.0) {
+    RCLCPP_ERROR(this->get_logger(), 
+                 "Invalid parameter: publish_frequency must be positive");
+    throw std::runtime_error("Invalid parameters");
+  }
+
   // Initialize state
   state_.time = this->get_clock()->now();
 
   // Publishers
-  publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
+  publisher_ = this->create_publisher<nav_msgs::msg::Odometry>(odom_topic_, 10);
 
   // Subscribers
   subscription_ = this->create_subscription<ackermann_interfaces::msg::AckermannFeedback>(
     "feedback", 10,
     std::bind(&OdomPublisher::feedback_callback, this, std::placeholders::_1));
 
+  // Timer for periodic publishing
+  auto timer_period = std::chrono::duration<double>(1.0 / publish_frequency_);
+  timer_ = this->create_wall_timer(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(timer_period),
+    std::bind(&OdomPublisher::timer_callback, this));
+
   RCLCPP_INFO(this->get_logger(), "Odometry publisher initialized");
   RCLCPP_INFO(this->get_logger(), "Parameters: axle_length=%.2f, wheelbase_length=%.2f, wheel_radius=%.2f",
               axle_length_, wheelbase_length_, wheel_radius_);
+  RCLCPP_INFO(this->get_logger(), "Publishing odometry on topic '%s' at %.1f Hz",
+              odom_topic_.c_str(), publish_frequency_);
 }
 
 void OdomPublisher::feedback_callback(
@@ -50,7 +68,10 @@ void OdomPublisher::feedback_callback(
   state_ = state_update(state_, msg);
   RCLCPP_DEBUG(this->get_logger(), "State updated: position=(%.3f, %.3f, %.3f)", 
                state_.x, state_.y, state_.z);
-  
+}
+
+void OdomPublisher::timer_callback()
+{
   auto output_msg = output(state_);
   RCLCPP_DEBUG(this->get_logger(), "Publishing odometry");
   
