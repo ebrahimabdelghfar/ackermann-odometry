@@ -37,4 +37,20 @@ The default configuration file is located at `config/params.yaml`. You can:
 3. Override parameters at runtime using ROS 2 parameter services:
    ```bash
    ros2 param set /odom_publisher axle_length 1.5
+   ros2 param set /odom_publisher publish_frequency 100.0
+   ros2 param set /odom_publisher odom_topic custom_odom
    ```
+
+### Examples
+
+**Change publish frequency:**
+```bash
+ros2 launch ackermann_odometry odometry.launch.py params_file:=/path/to/params.yaml
+# In params.yaml, set publish_frequency: 100.0 for 100 Hz
+```
+
+**Change odometry topic name:**
+```bash
+ros2 launch ackermann_odometry odometry.launch.py params_file:=/path/to/params.yaml
+# In params.yaml, set odom_topic: "custom_odom"
+```
