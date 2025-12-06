@@ -40,6 +40,7 @@ public:
 
 private:
   void feedback_callback(const ackermann_interfaces::msg::AckermannFeedback::SharedPtr msg);
+  void timer_callback();
   AckermannState state_update(const AckermannState & state, 
                                const ackermann_interfaces::msg::AckermannFeedback::SharedPtr & feedback);
   nav_msgs::msg::Odometry output(const AckermannState & state);
@@ -53,6 +54,8 @@ private:
   double wheel_radius_;
   double center_of_mass_offset_;
   double damping_factor_;
+  double publish_frequency_;
+  std::string odom_topic_;
 
   // State
   AckermannState state_;
@@ -60,6 +63,7 @@ private:
   // Publishers and Subscribers
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr publisher_;
   rclcpp::Subscription<ackermann_interfaces::msg::AckermannFeedback>::SharedPtr subscription_;
+  rclcpp::TimerBase::SharedPtr timer_;
 };
 
 }  // namespace ackermann_odometry

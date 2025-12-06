@@ -26,6 +26,8 @@ Parameters are configured in `config/params.yaml`:
 - `wheel_radius`: Radius of the wheels (meters), default: 0.1
 - `center_of_mass_offset`: Offset of center of mass from rear axle (meters), default: 0.0
 - `damping_factor`: Damping factor for position updates, default: 1.0
+- `publish_frequency`: Odometry publish frequency (Hz), default: 50.0
+- `odom_topic`: Name of the odometry topic to publish to, default: "odom"
 
 ### Configuration File
 
