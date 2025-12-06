@@ -31,7 +31,7 @@ def generate_launch_description():
     
     damping_factor_arg = DeclareLaunchArgument(
         'damping_factor',
-        default_value='1.0',
+        default_value='1',
         description='Damping factor for position updates'
     )
     
