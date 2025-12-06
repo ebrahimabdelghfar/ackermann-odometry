@@ -17,15 +17,9 @@ Or with a custom parameters file:
 ros2 launch ackermann_odometry odometry.launch.py params_file:=/path/to/custom_params.yaml
 ```
 
-Or override specific parameters on the command line:
-
-```bash
-ros2 launch ackermann_odometry odometry.launch.py axle_length:=1.5 wheelbase_length:=2.5 wheel_radius:=0.15
-```
-
 ### Parameters
 
-Parameters can be configured in `config/params.yaml` or overridden via launch arguments:
+Parameters are configured in `config/params.yaml`:
 
 - `axle_length`: Distance between left and right wheels (meters), default: 1.0
 - `wheelbase_length`: Distance between front and rear axles (meters), default: 2.0
@@ -35,4 +29,10 @@ Parameters can be configured in `config/params.yaml` or overridden via launch ar
 
 ### Configuration File
 
-The default configuration file is located at `config/params.yaml`. You can modify this file to set your vehicle's parameters, or create a custom configuration file and specify it using the `params_file` launch argument.
+The default configuration file is located at `config/params.yaml`. You can:
+1. Modify this file directly to set your vehicle's parameters
+2. Create a custom configuration file and specify it using the `params_file` launch argument
+3. Override parameters at runtime using ROS 2 parameter services:
+   ```bash
+   ros2 param set /odom_publisher axle_length 1.5
+   ```
