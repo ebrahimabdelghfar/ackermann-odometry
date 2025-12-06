@@ -28,6 +28,14 @@ Parameters are configured in `config/params.yaml`:
 - `damping_factor`: Damping factor for position updates, default: 1.0
 - `publish_frequency`: Odometry publish frequency (Hz), default: 50.0
 - `odom_topic`: Name of the odometry topic to publish to, default: "odom"
+- `left_wheel_joint_name`: Name of the left wheel joint in JointState messages, default: "left_wheel_joint"
+- `right_wheel_joint_name`: Name of the right wheel joint in JointState messages, default: "right_wheel_joint"
+- `steering_joint_name`: Name of the steering joint in JointState messages, default: "steering_joint"
+
+### Input Topics
+
+The node subscribes to:
+- `joint_states` (sensor_msgs/msg/JointState): Joint state messages containing wheel velocities and steering angle
 
 ### Configuration File
 
