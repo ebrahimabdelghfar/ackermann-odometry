@@ -94,28 +94,60 @@ AckermannState OdomPublisher::state_update(
   double left_wheel_speed = 0.0;
   double right_wheel_speed = 0.0;
   double steering_angle = 0.0;
+  bool left_found = false;
+  bool right_found = false;
+  bool steering_found = false;
 
   // Find indices of the joints
   for (size_t i = 0; i < joint_state->name.size(); ++i) {
     if (joint_state->name[i] == left_wheel_joint_name_) {
       if (i < joint_state->velocity.size()) {
         left_wheel_speed = joint_state->velocity[i];
+        left_found = true;
+      } else {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Left wheel joint found but velocity not available");
       }
     } else if (joint_state->name[i] == right_wheel_joint_name_) {
       if (i < joint_state->velocity.size()) {
         right_wheel_speed = joint_state->velocity[i];
+        right_found = true;
+      } else {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Right wheel joint found but velocity not available");
       }
     } else if (joint_state->name[i] == steering_joint_name_) {
       if (i < joint_state->position.size()) {
         steering_angle = joint_state->position[i];
+        steering_found = true;
+      } else {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                             "Steering joint found but position not available");
       }
     }
   }
 
-  // Calculate velocities
-  double average_wheel_speed = (state.left_wheel_speed + state.right_wheel_speed) / 2.0;
+  // Warn if expected joints were not found
+  if (!left_found) {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                         "Left wheel joint '%s' not found in joint state message",
+                         left_wheel_joint_name_.c_str());
+  }
+  if (!right_found) {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                         "Right wheel joint '%s' not found in joint state message",
+                         right_wheel_joint_name_.c_str());
+  }
+  if (!steering_found) {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                         "Steering joint '%s' not found in joint state message",
+                         steering_joint_name_.c_str());
+  }
+
+  // Calculate velocities using the newly extracted values
+  double average_wheel_speed = (left_wheel_speed + right_wheel_speed) / 2.0;
   double linear_speed = average_wheel_speed * wheel_radius_;
-  double turn_rad = turn_radius(state.steering_angle);
+  double turn_rad = turn_radius(steering_angle);
   double angular_speed = std::isfinite(turn_rad) ? (linear_speed / turn_rad) : 0.0;
 
   // Calculate time delta
