@@ -14,3 +14,9 @@ odom_publisher:
     
     # Damping factor for position updates
     damping_factor: 1.0
+    
+    # Odometry publish frequency (Hz)
+    publish_frequency: 50.0
+    
+    # Odometry topic name
+    odom_topic: "odom"
