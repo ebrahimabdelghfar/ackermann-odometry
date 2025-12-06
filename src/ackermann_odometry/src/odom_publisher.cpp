@@ -16,6 +16,9 @@ OdomPublisher::OdomPublisher()
   this->declare_parameter("damping_factor", 1.0);
   this->declare_parameter("publish_frequency", 50.0);
   this->declare_parameter("odom_topic", "odom");
+  this->declare_parameter("left_wheel_joint_name", "left_wheel_joint");
+  this->declare_parameter("right_wheel_joint_name", "right_wheel_joint");
+  this->declare_parameter("steering_joint_name", "steering_joint");
 
   axle_length_ = this->get_parameter("axle_length").as_double();
   wheelbase_length_ = this->get_parameter("wheelbase_length").as_double();
@@ -24,6 +27,9 @@ OdomPublisher::OdomPublisher()
   damping_factor_ = this->get_parameter("damping_factor").as_double();
   publish_frequency_ = this->get_parameter("publish_frequency").as_double();
   odom_topic_ = this->get_parameter("odom_topic").as_string();
+  left_wheel_joint_name_ = this->get_parameter("left_wheel_joint_name").as_string();
+  right_wheel_joint_name_ = this->get_parameter("right_wheel_joint_name").as_string();
+  steering_joint_name_ = this->get_parameter("steering_joint_name").as_string();
 
   // Validate critical parameters
   if (axle_length_ <= 0.0 || wheelbase_length_ <= 0.0 || wheel_radius_ <= 0.0) {
@@ -45,9 +51,9 @@ OdomPublisher::OdomPublisher()
   publisher_ = this->create_publisher<nav_msgs::msg::Odometry>(odom_topic_, 10);
 
   // Subscribers
-  subscription_ = this->create_subscription<ackermann_interfaces::msg::AckermannFeedback>(
-    "feedback", 10,
-    std::bind(&OdomPublisher::feedback_callback, this, std::placeholders::_1));
+  subscription_ = this->create_subscription<sensor_msgs::msg::JointState>(
+    "joint_states", 10,
+    std::bind(&OdomPublisher::joint_state_callback, this, std::placeholders::_1));
 
   // Timer for periodic publishing
   auto timer_period = std::chrono::duration<double>(1.0 / publish_frequency_);
@@ -58,12 +64,14 @@ OdomPublisher::OdomPublisher()
   RCLCPP_INFO(this->get_logger(), "Odometry publisher initialized");
   RCLCPP_INFO(this->get_logger(), "Parameters: axle_length=%.2f, wheelbase_length=%.2f, wheel_radius=%.2f",
               axle_length_, wheelbase_length_, wheel_radius_);
+  RCLCPP_INFO(this->get_logger(), "Joint names: left=%s, right=%s, steering=%s",
+              left_wheel_joint_name_.c_str(), right_wheel_joint_name_.c_str(), steering_joint_name_.c_str());
   RCLCPP_INFO(this->get_logger(), "Publishing odometry on topic '%s' at %.1f Hz",
               odom_topic_.c_str(), publish_frequency_);
 }
 
-void OdomPublisher::feedback_callback(
-  const ackermann_interfaces::msg::AckermannFeedback::SharedPtr msg)
+void OdomPublisher::joint_state_callback(
+  const sensor_msgs::msg::JointState::SharedPtr msg)
 {
   state_ = state_update(state_, msg);
   RCLCPP_DEBUG(this->get_logger(), "State updated: position=(%.3f, %.3f, %.3f)", 
@@ -80,8 +88,30 @@ void OdomPublisher::timer_callback()
 
 AckermannState OdomPublisher::state_update(
   const AckermannState & state,
-  const ackermann_interfaces::msg::AckermannFeedback::SharedPtr & feedback)
+  const sensor_msgs::msg::JointState::SharedPtr & joint_state)
 {
+  // Extract values from joint state message
+  double left_wheel_speed = 0.0;
+  double right_wheel_speed = 0.0;
+  double steering_angle = 0.0;
+
+  // Find indices of the joints
+  for (size_t i = 0; i < joint_state->name.size(); ++i) {
+    if (joint_state->name[i] == left_wheel_joint_name_) {
+      if (i < joint_state->velocity.size()) {
+        left_wheel_speed = joint_state->velocity[i];
+      }
+    } else if (joint_state->name[i] == right_wheel_joint_name_) {
+      if (i < joint_state->velocity.size()) {
+        right_wheel_speed = joint_state->velocity[i];
+      }
+    } else if (joint_state->name[i] == steering_joint_name_) {
+      if (i < joint_state->position.size()) {
+        steering_angle = joint_state->position[i];
+      }
+    }
+  }
+
   // Calculate velocities
   double average_wheel_speed = (state.left_wheel_speed + state.right_wheel_speed) / 2.0;
   double linear_speed = average_wheel_speed * wheel_radius_;
@@ -89,8 +119,8 @@ AckermannState OdomPublisher::state_update(
   double angular_speed = std::isfinite(turn_rad) ? (linear_speed / turn_rad) : 0.0;
 
   // Calculate time delta
-  rclcpp::Time feedback_time(feedback->header.stamp);
-  double time_delta = (feedback_time - state.time).seconds();
+  rclcpp::Time joint_state_time(joint_state->header.stamp);
+  double time_delta = (joint_state_time - state.time).seconds();
 
   // Calculate heading delta
   double heading_delta = angular_speed * time_delta;  // This is zero if angular_speed is zero
@@ -131,10 +161,10 @@ AckermannState OdomPublisher::state_update(
   new_state.y = state.y + damping_factor_ * position_delta_y;
   new_state.z = state.z + damping_factor_ * position_delta_z;
   new_state.orientation = orientation_delta * state.orientation;
-  new_state.left_wheel_speed = feedback->left_wheel_speed;
-  new_state.right_wheel_speed = feedback->right_wheel_speed;
-  new_state.steering_angle = feedback->steering_angle;
-  new_state.time = feedback_time;
+  new_state.left_wheel_speed = left_wheel_speed;
+  new_state.right_wheel_speed = right_wheel_speed;
+  new_state.steering_angle = steering_angle;
+  new_state.time = joint_state_time;
 
   return new_state;
 }

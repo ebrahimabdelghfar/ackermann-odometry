@@ -20,3 +20,8 @@ odom_publisher:
     
     # Odometry topic name
     odom_topic: "odom"
+    
+    # Joint names for extracting data from JointState messages
+    left_wheel_joint_name: "left_wheel_joint"
+    right_wheel_joint_name: "right_wheel_joint"
+    steering_joint_name: "steering_joint"
