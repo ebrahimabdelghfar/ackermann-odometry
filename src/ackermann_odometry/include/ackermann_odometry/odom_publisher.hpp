@@ -3,7 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
-#include <ackermann_interfaces/msg/ackermann_feedback.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <cmath>
@@ -39,10 +39,10 @@ public:
   OdomPublisher();
 
 private:
-  void feedback_callback(const ackermann_interfaces::msg::AckermannFeedback::SharedPtr msg);
+  void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
   void timer_callback();
   AckermannState state_update(const AckermannState & state, 
-                               const ackermann_interfaces::msg::AckermannFeedback::SharedPtr & feedback);
+                               const sensor_msgs::msg::JointState::SharedPtr & joint_state);
   nav_msgs::msg::Odometry output(const AckermannState & state);
   double turn_radius(double steering_angle);
   void linear_velocity(const tf2::Quaternion & orientation, double speed, 
@@ -56,13 +56,16 @@ private:
   double damping_factor_;
   double publish_frequency_;
   std::string odom_topic_;
+  std::string left_wheel_joint_name_;
+  std::string right_wheel_joint_name_;
+  std::string steering_joint_name_;
 
   // State
   AckermannState state_;
 
   // Publishers and Subscribers
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr publisher_;
-  rclcpp::Subscription<ackermann_interfaces::msg::AckermannFeedback>::SharedPtr subscription_;
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr subscription_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
